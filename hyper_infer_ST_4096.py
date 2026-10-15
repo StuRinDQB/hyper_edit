@@ -21,6 +21,14 @@ from transformers import (
 # NEW: Sentence-Transformer
 from sentence_transformers import SentenceTransformer
 
+# Share the lightweight checkpoint architecture and LoRA hooks with batch inference.
+from multi_hyper import (
+    GRUHyperLoRA,
+    attach_hyperlora_hooks,
+    clear_hyperlora_state,
+    find_target_linear_modules,
+)
+
 ###########################################################
 # 0) Logging & NLTK
 ###########################################################
@@ -77,137 +85,6 @@ def chunk_by_tokens(paragraphs: List[str], tokenizer, max_tokens=1024) -> List[s
     return chunks
 
 ###########################################################
-# 2) HyperLoRA（与训练脚本2一致）
-###########################################################
-TARGET_PATTERNS = [
-    re.compile(r".*q_proj$"),
-    re.compile(r".*k_proj$"),
-    re.compile(r".*v_proj$"),
-    re.compile(r".*o_proj$"),
-]
-
-def find_target_linear_modules(model: nn.Module) -> List[Tuple[str, nn.Linear]]:
-    targets = []
-    for name, mod in model.named_modules():
-        if isinstance(mod, nn.Linear):
-            if any(pat.match(name) for pat in TARGET_PATTERNS):
-                targets.append((name, mod))
-    targets.sort(key=lambda x: x[0])
-    return targets
-
-# ===== ADD: use the same GRUHyperLoRA as in training =====
-def _sanitize(name: str) -> str:
-    return re.sub(r'[^0-9a-zA-Z_]', '_', name.replace('.', '__'))
-
-class GRUHyperLoRA(nn.Module):
-    def __init__(self, hidden_size: int, targets_meta, rank: int = 8,
-                 dropout: float = 0.1, num_codes: int = 16, gru_layers: int = 2):
-        super().__init__()
-        self.rank = rank
-        self.hidden = hidden_size
-        self.targets_meta = targets_meta
-        self.num_codes = num_codes
-        self.gru_layers = gru_layers
-
-        self.name2safe, self.safe2name = {}, {}
-        self.B = nn.ParameterDict()
-        self.target_dims = {}
-
-        for name, in_f, out_f in targets_meta:
-            safe = _sanitize(name)
-            while safe in self.B:
-                safe = safe + "_1"
-            self.name2safe[name] = safe
-            self.safe2name[safe] = name
-            self.target_dims[name] = (in_f, out_f)
-
-            B = nn.Parameter(torch.empty(out_f, rank))
-            nn.init.xavier_uniform_(B)
-            self.B[safe] = B
-
-        self.global_embeddings = nn.Embedding(num_codes, 512)
-        nn.init.normal_(self.global_embeddings.weight, mean=0.0, std=0.02)
-
-        self.input_proj = nn.Linear(512, hidden_size)
-        self.gru = nn.GRU(
-            input_size=hidden_size,
-            hidden_size=hidden_size,
-            num_layers=gru_layers,
-            batch_first=True,
-            dropout=dropout if gru_layers > 1 else 0
-        )
-        self.context_fusion = nn.Linear(hidden_size + hidden_size, hidden_size)
-
-        self.a_generators = nn.ModuleDict()
-        for name, in_f, _ in targets_meta:
-            safe = self.name2safe[name]
-            self.a_generators[safe] = nn.Sequential(
-                nn.Linear(hidden_size, hidden_size * 2),
-                nn.GELU(),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_size * 2, rank * in_f),
-                nn.Tanh()
-            )
-
-    def forward(self, pooled_e: torch.Tensor,
-                hidden_state: torch.Tensor = None):
-        B = pooled_e.size(0)
-        embeddings_seq = self.global_embeddings.weight
-        gru_input = self.input_proj(embeddings_seq).unsqueeze(0).expand(B, -1, -1)
-
-        if hidden_state is None:
-            hidden_state = torch.zeros(
-                self.gru_layers, B, self.hidden,
-                device=pooled_e.device, dtype=pooled_e.dtype
-            )
-
-        gru_output, new_hidden_state = self.gru(gru_input, hidden_state)
-        gru_features = gru_output[:, -1, :]
-        fused = self.context_fusion(torch.cat([pooled_e, gru_features], dim=-1))
-
-        A_map = {}
-        for name, in_f, _ in self.targets_meta:
-            safe = self.name2safe[name]
-            A_flat = self.a_generators[safe](fused)          # [B, r*in_f]
-            A_map[name] = A_flat.view(B, self.rank, in_f)    # [B, r, in_f]
-        return A_map, new_hidden_state
-
-    def get_B_by_name(self, name: str) -> torch.Tensor:
-        return self.B[self.name2safe[name]]
-
-    def reset_hidden_state(self, batch_size: int, device: torch.device) -> torch.Tensor:
-        return torch.zeros(self.gru_layers, batch_size, self.hidden, device=device)
-
-# ===== REPLACE attach_hyperlora_hooks IN INFERENCE =====
-def attach_hyperlora_hooks(targets: List[Tuple[str, nn.Linear]], rank: int):
-    hooks = []
-    for name, mod in targets:
-        mod._hyper_state = None  # (A_any, B, alpha)；A_any: [r,in] 或 [B,r,in]
-        mod._hyper_rank = rank
-
-        def _make_hook(m):
-            def _hook(m, inp, out):
-                state = getattr(m, "_hyper_state", None)
-                if state is None:
-                    return out
-                A_any, Bm, alpha = state
-                x = inp[0]  # [B,S,in]
-                if A_any.dim() == 2:         # [r,in] 共享
-                    z = torch.einsum('bsi,ri->bsr', x, A_any)
-                else:                         # [B,r,in] 批次特定
-                    z = torch.einsum('bsi,bri->bsr', x, A_any)
-                delta = torch.einsum('bsr,or->bso', z, Bm)  # [B,S,out]
-                return out + delta * (alpha / float(m._hyper_rank))
-            return _hook
-        hooks.append(mod.register_forward_hook(_make_hook(mod)))
-    return hooks
-
-def clear_hyperlora_state(targets: List[Tuple[str, nn.Linear]]):
-    for _, mod in targets:
-        mod._hyper_state = None
-
-
-###########################################################
 # 3) NEW: 安全的 ST 分块编码（训练/推理同分布）
 ###########################################################
 @torch.no_grad()
@@ -258,25 +135,33 @@ def encode_prompts_with_st(sent_model: SentenceTransformer,
 ###########################################################
 # ===== REPLACE load_hyper_from_pt_st IN INFERENCE =====
 def load_hyper_from_pt_st(ckpt_path: str, device: torch.device):
-    ckpt = torch.load(ckpt_path, map_location="cpu")
+    device = torch.device(device)
+    ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=True)
+    state = ckpt["hyper"]
+    required = {"global_embeddings.weight", "layer_gru.weight_hh_l0"}
+    if not required.issubset(state):
+        raise ValueError(
+            "Expected a lightweight HyperLoRA checkpoint with layer_gru/E_local/a_ln/a_proj. "
+            "Legacy a_generators checkpoints are not supported by this inference script."
+        )
     model_name = ckpt["model_name"]
     meta = ckpt["targets"]                      # [(name, in_f, out_f), ...]
     cfg = ckpt.get("config", {})
-    rank = int(cfg.get("rank", 16))
+    rank = int(cfg.get("rank", 8))
     dropout = float(cfg.get("hyper_dropout", 0.1))
     alpha = float(cfg.get("alpha", 32.0))
-    num_codes = int(cfg.get("num_codes", 24))
-    gru_layers = int(cfg.get("gru_layers", 3))
+    num_codes = int(cfg.get("num_codes", state["global_embeddings.weight"].shape[0]))
+    gru_layers = int(cfg.get("gru_layers", 2))
     sent_model_name = ckpt.get("sent_model", "Qwen/Qwen3-Embedding-0.6B")
-    sent_max_len = int(cfg.get("sent_max_len", 4096))
+    sent_max_len = int(cfg.get("sent_max_len", 2048))
 
     tok = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     if tok.pad_token_id is None:
         tok.pad_token = tok.eos_token
 
-    if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+    if device.type == "cuda" and torch.cuda.is_bf16_supported():
         dtype = torch.bfloat16
-    elif torch.cuda.is_available():
+    elif device.type == "cuda":
         dtype = torch.float16
     else:
         dtype = torch.float32
@@ -303,9 +188,21 @@ def load_hyper_from_pt_st(ckpt_path: str, device: torch.device):
             "Please ensure you are loading the SAME base model as training."
         )
 
+    saved_shapes = {name: (in_f, out_f) for name, in_f, out_f in meta}
+    if len(saved_shapes) != len(meta):
+        raise RuntimeError("Checkpoint contains duplicate target layer names")
+    for name, mod in targets:
+        actual = (mod.in_features, mod.out_features)
+        if actual != saved_shapes[name]:
+            raise RuntimeError(
+                f"Target layer shape mismatch for {name}: "
+                f"checkpoint={saved_shapes[name]}, model={actual}"
+            )
+
     # Sentence-Transformer（冻结）
     log_info(f"Loading Sentence-Transformer: {sent_model_name}")
-    st = SentenceTransformer(sent_model_name)
+    st = SentenceTransformer(sent_model_name, device=str(device))
+    st.eval()
     for p in st.parameters():
         p.requires_grad = False
     st_dim = st.get_sentence_embedding_dimension()
@@ -317,11 +214,13 @@ def load_hyper_from_pt_st(ckpt_path: str, device: torch.device):
         rank=rank,
         dropout=dropout,
         num_codes=num_codes,
-        gru_layers=gru_layers
+        gru_layers=gru_layers,
+        global_dim=state["global_embeddings.weight"].shape[1],
+        d_h=state["layer_gru.weight_hh_l0"].shape[1],
     ).to(device=device, dtype=dtype)
-    hyper.load_state_dict(ckpt["hyper"], strict=False)
+    hyper.load_state_dict(state, strict=True)
     hyper.eval()
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] HyperLoRA checkpoint loaded successfully.")
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Lightweight HyperLoRA checkpoint loaded strictly.")
 
     # 注册 3 元组 hook
     hooks = attach_hyperlora_hooks(targets, rank=rank)
@@ -380,38 +279,23 @@ def generate_edited_text_st(
         A_map, _ = hyper(pooled, hidden_state=None)  # dict[name] -> [B, r, in]
         alpha_t = torch.tensor(alpha, device=device, dtype=dtype)
 
-        # 注入 (A_batch, B, alpha) —— 三元组
-        for name, mod in targets:
-            A_batch = A_map[name]                 # [1, r, in]
-            Bm = hyper.get_B_by_name(name)        # [out, r]
-            mod._hyper_state = (A_batch, Bm, alpha_t)
+        # Keep adapter state local to this generation, including failure paths.
+        try:
+            for name, mod in targets:
+                mod._hyper_state = (A_map[name], hyper.get_B_by_name(name), alpha_t)
 
-        # # 超网络生成每层的 rank 门控向量
-        # s_map = hyper(pooled)  # {layer_name: [1, r]}
-
-        # # 注入 (A,B,svec,alpha) 到目标层
-        # alpha_t = torch.tensor(alpha, device=device, dtype=dtype)
-        # for name, mod in targets:
-        #     A, Bm = hyper.get_AB_by_name(name)
-        #     svec = s_map[name]                         # [1, r]
-        #     mod._hyper_state = (A, Bm, svec, alpha_t)
-
-        # 编码完整提示并生成（与脚本1一致）
-        enc = tok(prompt, return_tensors="pt").to(device)
-        dyn_max_new = max(128, min(max_new_tokens, int(len(tok.encode(chunk_text)) * 1.1)))
-        gen_ids = lm.generate(
-            **enc,
-            max_new_tokens=dyn_max_new,
-            temperature=0.7,
-            top_p=0.9,
-        )
-        full_text = tok.decode(gen_ids[0], skip_special_tokens=True)
-        # 只取 "### Edited Content:" 之后的部分（保持一致）
-        part = full_text.split("### Edited Content:")
-        outputs.append(part[-1].strip() if len(part) > 1 else full_text.strip())
-
-        # 清理状态，避免影响下一个块
-        clear_hyperlora_state(targets)
+            enc = tok(prompt, return_tensors="pt").to(device)
+            dyn_max_new = max(128, min(max_new_tokens, int(len(tok.encode(chunk_text)) * 1.1)))
+            gen_ids = lm.generate(
+                **enc,
+                max_new_tokens=dyn_max_new,
+                temperature=0.7,
+                top_p=0.9,
+            )
+            new_ids = gen_ids[0, enc["input_ids"].shape[1]:]
+            outputs.append(tok.decode(new_ids, skip_special_tokens=True).strip())
+        finally:
+            clear_hyperlora_state(targets)
 
     return "\n\n".join(outputs).strip()
 
