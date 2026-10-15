@@ -44,7 +44,7 @@ The code supports editing across **Code, LaTeX, SQL, and Wikipedia text**, with 
 </p>
 
 <p align="center">
-  <em>Context-aware dynamic weight generation — Figure 1 from the <a href="https://arxiv.org/html/2512.12544v1#S1.F1">HyperEdit paper</a>.</em>
+  <em>HyperEdit at a glance — a redesigned overview based on the <a href="https://arxiv.org/html/2512.12544v1#S1.F1">HyperEdit paper</a>.</em>
 </p>
 
 1. **Encode the editing context.** A frozen sentence encoder embeds the instruction together with the original text.
