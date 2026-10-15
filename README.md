@@ -1,17 +1,15 @@
 <p align="center">
-  <img src="assets/hyperedit-banner.svg" alt="HyperEdit — Adapt to the request. Preserve the context." width="100%">
+  <img src="assets/hyperedit-banner.svg" alt="HyperEdit — precision through adaptation." width="100%">
 </p>
 
 <p align="center">
-  <strong>Unlocking Instruction-based Text Editing in LLMs via Hypernetworks</strong><br>
-  <sub>Request-specific adaptation · Difference-aware supervision · A frozen language model</sub>
+  <strong>Unlocking Instruction-based Text Editing in LLMs via Hypernetworks</strong>
 </p>
 
 <p align="center">
-  <a href="https://aclanthology.org/2026.findings-acl.22/"><img src="https://img.shields.io/badge/ACL_2026-Findings-6366f1?style=flat-square" alt="ACL 2026 Findings"></a>
-  <a href="https://arxiv.org/abs/2512.12544"><img src="https://img.shields.io/badge/arXiv-2512.12544-b31b1b?style=flat-square" alt="arXiv paper"></a>
-  <a href="https://aclanthology.org/2026.findings-acl.22.pdf"><img src="https://img.shields.io/badge/Read_the-Paper-0f766e?style=flat-square" alt="Read the paper PDF"></a>
-  <a href="#quick-start"><img src="https://img.shields.io/badge/Built_with-PyTorch-ee4c2c?style=flat-square" alt="Built with PyTorch"></a>
+  <a href="https://aclanthology.org/2026.findings-acl.22/"><img src="https://img.shields.io/badge/ACL_2026-Findings-315bd8?style=flat-square&amp;labelColor=26344d" alt="ACL 2026 Findings"></a>
+  <a href="https://arxiv.org/abs/2512.12544"><img src="https://img.shields.io/badge/arXiv-2512.12544-657a9e?style=flat-square&amp;labelColor=26344d" alt="arXiv paper"></a>
+  <a href="https://aclanthology.org/2026.findings-acl.22.pdf"><img src="https://img.shields.io/badge/Read_the-Paper-657a9e?style=flat-square&amp;labelColor=26344d" alt="Read the paper PDF"></a>
 </p>
 
 <p align="center">

@@ -1,40 +1,57 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="340" viewBox="0 0 1280 340" role="img" aria-labelledby="title desc">
-  <title id="title">HyperEdit</title>
-  <desc id="desc">Instruction-guided editing with request-specific hypernetworks. Code, LaTeX, SQL, and Wikipedia text.</desc>
+  <title id="title">HyperEdit — precision through adaptation</title>
+  <desc id="desc">An editorial-style research cover. HyperEdit appears in large blue and ink typography alongside an abstract illustration of a targeted text edit.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#101d32"/><stop offset="1" stop-color="#18253f"/>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#faf9f5"/><stop offset="1" stop-color="#f0f3f8"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#a5b4fc"/>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#244ed5"/><stop offset="1" stop-color="#527ce5"/>
     </linearGradient>
-    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-      <path d="M32 0H0V32" fill="none" stroke="#b4c6e6" stroke-opacity=".045"/>
-    </pattern>
   </defs>
-  <rect width="1280" height="340" rx="24" fill="url(#bg)"/>
-  <rect width="1280" height="340" rx="24" fill="url(#grid)"/>
-  <rect x="52" y="45" width="38" height="4" rx="2" fill="#5eead4"/>
-  <text x="104" y="52" fill="#9fb3d0" font-family="Arial, sans-serif" font-size="13" letter-spacing="3">INSTRUCTION-BASED TEXT EDITING</text>
-  <text x="50" y="145" fill="#f1f5ff" font-family="Arial, sans-serif" font-weight="700" font-size="76" letter-spacing="-3">Hyper<tspan fill="#5eead4">Edit</tspan></text>
-  <text x="54" y="192" fill="#c0cde2" font-family="Arial, sans-serif" font-size="22">Adapt to the request. Preserve the context.</text>
-  <g font-family="Arial, sans-serif" font-size="13" fill="#c4d3e8" text-anchor="middle">
-    <rect x="54" y="242" width="74" height="30" rx="15" fill="#25344e"/><text x="91" y="262">Code</text>
-    <rect x="140" y="242" width="82" height="30" rx="15" fill="#25344e"/><text x="181" y="262">LaTeX</text>
-    <rect x="234" y="242" width="66" height="30" rx="15" fill="#25344e"/><text x="267" y="262">SQL</text>
-    <rect x="312" y="242" width="108" height="30" rx="15" fill="#25344e"/><text x="366" y="262">Wikipedia</text>
+  <rect x="1" y="1" width="1278" height="338" rx="16" fill="url(#paper)" stroke="#e1e5ed"/>
+  <path d="M58 53H88" stroke="#335cda" stroke-width="3"/>
+  <text x="103" y="58" fill="#52617a" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" letter-spacing="2.6">PRECISION THROUGH ADAPTATION</text>
+  <text x="55" y="183" font-family="Georgia, 'Times New Roman', serif" font-size="108" letter-spacing="-5" fill="#17263f">Hyper<tspan fill="#315bd8">Edit</tspan></text>
+  <path d="M342 203C397 196 458 196 515 201" fill="none" stroke="#df8163" stroke-width="4" stroke-linecap="round"/>
+  <text x="60" y="244" fill="#5c687d" font-family="Arial, Helvetica, sans-serif" font-size="21">Small changes. Context intact.</text>
+  <path d="M60 283H648" stroke="#d5dce6"/>
+  <text x="60" y="309" fill="#6a7588" font-family="Arial, Helvetica, sans-serif" font-size="11" letter-spacing="2">CODE</text>
+  <circle cx="129" cy="305" r="2" fill="#aab4c4"/>
+  <text x="150" y="309" fill="#6a7588" font-family="Arial, Helvetica, sans-serif" font-size="11" letter-spacing="2">LATEX</text>
+  <circle cx="226" cy="305" r="2" fill="#aab4c4"/>
+  <text x="248" y="309" fill="#6a7588" font-family="Arial, Helvetica, sans-serif" font-size="11" letter-spacing="2">SQL</text>
+  <circle cx="302" cy="305" r="2" fill="#aab4c4"/>
+  <text x="325" y="309" fill="#6a7588" font-family="Arial, Helvetica, sans-serif" font-size="11" letter-spacing="2">WIKIPEDIA</text>
+
+  <!-- A single rewritten span inside an otherwise preserved document. -->
+  <ellipse cx="999" cy="173" rx="188" ry="122" fill="#e5ebfa" opacity=".55"/>
+  <g transform="translate(822 66) rotate(-7 150 105)">
+    <rect width="312" height="216" rx="12" fill="#e5eaf4" stroke="#d6deef"/>
   </g>
-  <rect x="756" y="52" width="466" height="236" rx="16" fill="#0c172a" stroke="#344560"/>
-  <circle cx="779" cy="74" r="4" fill="#53647c"/><circle cx="794" cy="74" r="4" fill="#53647c"/><circle cx="809" cy="74" r="4" fill="#53647c"/>
-  <text x="1197" y="78" fill="#8198b8" font-family="monospace" font-size="11" text-anchor="end">request-conditioned adaptation</text>
-  <path d="M756 94H1222" stroke="#26364e"/>
-  <g font-family="monospace" font-size="15">
-    <text x="780" y="130" fill="#8198b8">// update the greeting</text>
-    <rect x="773" y="149" width="429" height="34" rx="6" fill="#3a2535"/>
-    <text x="787" y="171" fill="#fda4af">− print("Hello, world!")</text>
-    <rect x="773" y="192" width="429" height="34" rx="6" fill="#153c3c"/>
-    <text x="787" y="214" fill="#5eead4">+ print("Hello, HyperEdit!")</text>
-    <text x="780" y="259" fill="#93a8c7">same context · targeted changes</text>
+  <g transform="translate(848 58) rotate(5 150 108)">
+    <rect x="5" y="8" width="312" height="216" rx="12" fill="#d4ddec" opacity=".45"/>
+    <rect width="312" height="216" rx="12" fill="#ffffff" stroke="#d9e0ed"/>
+    <circle cx="26" cy="25" r="4" fill="#315bd8"/>
+    <text x="40" y="29" fill="#7b879b" font-family="Arial, Helvetica, sans-serif" font-size="9" font-weight="700" letter-spacing="1.5">CONTEXT</text>
+    <path d="M25 44H287" stroke="#edf0f6"/>
+    <g fill="#dce2ed">
+      <rect x="25" y="61" width="111" height="7" rx="3.5"/><rect x="144" y="61" width="139" height="7" rx="3.5"/>
+      <rect x="25" y="80" width="177" height="7" rx="3.5"/><rect x="210" y="80" width="58" height="7" rx="3.5"/>
+      <rect x="25" y="130" width="63" height="7" rx="3.5"/><rect x="96" y="130" width="185" height="7" rx="3.5"/>
+      <rect x="25" y="149" width="146" height="7" rx="3.5"/><rect x="179" y="149" width="91" height="7" rx="3.5"/>
+      <rect x="25" y="168" width="223" height="7" rx="3.5"/>
+    </g>
+    <rect x="19" y="97" width="274" height="23" rx="5" fill="#e8eefc"/>
+    <rect x="25" y="105" width="53" height="7" rx="3.5" fill="#c2ceea"/>
+    <rect x="86" y="103" width="124" height="11" rx="3" fill="url(#blue)"/>
+    <rect x="218" y="105" width="65" height="7" rx="3.5" fill="#c2ceea"/>
+    <path d="M213 99V118" stroke="#df8163" stroke-width="2"/>
   </g>
-  <rect x="54" y="310" width="1168" height="2" rx="1" fill="url(#accent)" opacity=".65"/>
+  <!-- Request-conditioned signal, routed directly to the edited span. -->
+  <path d="M752 198C793 198 798 173 836 173" fill="none" stroke="#315bd8" stroke-width="1.5"/>
+  <path d="M831 169L837 173L831 177" fill="none" stroke="#315bd8" stroke-width="1.5"/>
+  <circle cx="735" cy="198" r="18" fill="#f6f8fd" stroke="#b5c4ed"/>
+  <path d="M728 192L742 198L728 204Z" fill="none" stroke="#315bd8" stroke-width="1.5" stroke-linejoin="round"/>
+  <text x="990" y="309" text-anchor="middle" fill="#8190a7" font-family="Arial, Helvetica, sans-serif" font-size="10" letter-spacing="1.8">REQUEST-SPECIFIC · LOW-RANK · PRECISE</text>
 </svg>
